@@ -1,3 +1,4 @@
+com/mynacos/NacosQuickTest.class
 com/mynacos/naming/core/v2/client/Client.class
 com/mynacos/naming/core/v2/client/impl/IpPortBasedClient.class
 com/mynacos/naming/remote/NacosHttpServer$ListHandler.class
@@ -6,6 +7,7 @@ com/mynacos/NacosHttpTest.class
 com/mynacos/naming/remote/NacosHttpServer$BeatHandler.class
 com/mynacos/NacosIntegrationTest.class
 com/mynacos/naming/core/v2/pojo/InstancePublishInfo.class
+com/mynacos/NacosUnitTest.class
 com/mynacos/naming/core/v2/pojo/Service.class
 com/mynacos/NacosDemo.class
 com/mynacos/naming/remote/InstanceController.class
