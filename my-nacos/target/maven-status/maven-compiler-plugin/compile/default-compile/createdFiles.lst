@@ -1,8 +1,15 @@
 com/mynacos/naming/core/v2/client/Client.class
 com/mynacos/naming/core/v2/client/impl/IpPortBasedClient.class
+com/mynacos/naming/remote/NacosHttpServer$ListHandler.class
+com/mynacos/naming/core/v2/ServiceManager.class
+com/mynacos/NacosHttpTest.class
+com/mynacos/naming/remote/NacosHttpServer$BeatHandler.class
+com/mynacos/NacosIntegrationTest.class
 com/mynacos/naming/core/v2/pojo/InstancePublishInfo.class
 com/mynacos/naming/core/v2/pojo/Service.class
-com/mynacos/naming/core/v2/ServiceManager.class
 com/mynacos/NacosDemo.class
+com/mynacos/naming/remote/InstanceController.class
 com/mynacos/naming/core/v2/client/manager/ClientManager.class
+com/mynacos/naming/remote/NacosHttpServer.class
+com/mynacos/naming/remote/NacosHttpServer$InstanceHandler.class
 com/mynacos/naming/core/v2/client/manager/impl/EphemeralIpPortClientManager.class
