@@ -10,62 +10,63 @@ import com.mynacos.naming.core.v2.pojo.Service;
 import java.util.Collection;
 
 /**
- * Nacos naming client.
- *
- * 对照源码: com.alibaba.nacos.naming.core.v2.client.Client
- *
- * <p>服务端存储的客户端抽象概念。用于存储客户端发布了哪些服务、订阅了哪些服务。
- *
- * 设计要点:
- * 1. Client 是服务注册的入口 - 一个 Client 可以发布多个 Service
- * 2. Client 存储自己的实例信息和服务订阅关系
- * 3. 支持临时实例和持久实例
+ * Client - 客户端抽象
+ * 
+ * 问题：服务实例信息存在哪里？
+ * 
+ * 传统思路（Nacos 1.x）：
+ * - Service 包含 Instance 列表
+ * - 问题：一个服务有多个实例，实例从哪里来不清晰
+ * 
+ * Nacos 2.x 思路：
+ * - Client 包含自己发布的实例
+ * - 一个 Client（一个应用进程）可以发布多个 Service
+ * - 优势：
+ *   1. 连接断开时，自动清理该 Client 的所有实例
+ *   2. 支持一个进程注册多个服务
+ *   3. 与连接管理天然对应
+ * 
+ * 对照：com.alibaba.nacos.naming.core.v2.client.Client
  */
 public interface Client {
 
     /**
-     * 获取客户端唯一ID
-     * 格式: {@code ip:port#ephemeral}
-     * 例如: {@code 192.168.1.100:8080#true}
+     * 客户端唯一 ID
+     * 格式：ip:port#ephemeral
+     * 示例：192.168.1.100:8080#true
      */
     String getClientId();
 
     /**
      * 是否为临时客户端
+     * true=临时实例，false=持久实例
      */
     boolean isEphemeral();
 
     /**
-     * 设置最后更新时间为当前时间
+     * 刷新最后更新时间
      */
     void setLastUpdatedTime();
 
-    /**
-     * 获取最后更新时间
-     */
     long getLastUpdatedTime();
 
-    // ==================== 服务发布相关 ====================
+    // ==================== 服务发布 ====================
 
     /**
-     * 添加服务实例
-     *
-     * @param service 要发布的服务
+     * 发布服务实例
+     * @param service 服务
      * @param instancePublishInfo 实例信息
-     * @return 是否添加成功
+     * @return 是否成功
      */
     boolean addServiceInstance(Service service, InstancePublishInfo instancePublishInfo);
 
     /**
      * 移除服务实例
-     *
-     * @param service 服务
-     * @return 被移除的实例信息,如果不存在返回 null
      */
     InstancePublishInfo removeServiceInstance(Service service);
 
     /**
-     * 获取服务实例信息
+     * 获取某服务的实例信息
      */
     InstancePublishInfo getInstancePublishInfo(Service service);
 
@@ -75,20 +76,11 @@ public interface Client {
     Collection<Service> getAllPublishedService();
 
     /**
-     * 是否包含某个服务的实例
+     * 是否包含某服务
      */
     boolean containsService(Service service);
 
-    // ==================== 服务订阅相关 (占位) ====================
+    // ==================== 资源释放 ====================
 
-    // TODO: addServiceSubscriber
-    // TODO: removeServiceSubscriber
-    // TODO: getSubscriber
-
-    // ==================== 连接相关 (占位) ====================
-
-    /**
-     * 释放资源
-     */
     void release();
 }

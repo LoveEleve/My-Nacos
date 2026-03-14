@@ -13,17 +13,24 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 基于 IP + Port 的客户端实现
- *
- * 对照源码: com.alibaba.nacos.naming.core.v2.client.impl.IpPortBasedClient
- *
- * 这是最常见的客户端类型,用于存储临时实例的注册信息。
+ * IpPortBasedClient - 基于 IP:Port 的客户端实现
+ * 
+ * 场景：最常见的客户端类型
+ * - 服务启动时注册自己
+ * - 通过 IP + Port 唯一标识
+ * - 支持临时实例（默认）和持久实例
+ * 
+ * 存储结构：
+ * Map<Service, InstancePublishInfo>
+ * Key：服务（如 order-service）
+ * Value：实例信息（IP、端口、权重等）
+ * 
+ * 对照：com.alibaba.nacos.naming.core.v2.client.impl.IpPortBasedClient
  */
 public class IpPortBasedClient implements Client {
 
     /**
-     * 客户端ID
-     * 格式: ip:port#ephemeral
+     * 客户端 ID
      */
     private final String clientId;
 
@@ -33,22 +40,17 @@ public class IpPortBasedClient implements Client {
     private final boolean ephemeral;
 
     /**
-     * 最后更新时间
+     * 最后更新时间 - 用于健康检查
      */
     private volatile long lastUpdatedTime;
 
     /**
-     * 该客户端发布的服务实例
-     * Key: Service, Value: 实例信息
+     * 发布的服务实例
+     * Key：Service
+     * Value：实例发布信息
      */
     private final ConcurrentHashMap<Service, InstancePublishInfo> serviceInstances;
 
-    // TODO: 订阅关系存储
-    // private final ConcurrentHashMap<Service, Subscriber> subscribers;
-
-    /**
-     * 构造器
-     */
     public IpPortBasedClient(String clientId, boolean ephemeral) {
         this.clientId = clientId;
         this.ephemeral = ephemeral;
@@ -57,13 +59,16 @@ public class IpPortBasedClient implements Client {
     }
 
     /**
-     * 静态工厂方法
+     * 工厂方法：创建临时客户端
      */
     public static IpPortBasedClient createEphemeralClient(String ip, int port) {
         String clientId = ip + ":" + port + "#" + true;
         return new IpPortBasedClient(clientId, true);
     }
 
+    /**
+     * 工厂方法：创建持久客户端
+     */
     public static IpPortBasedClient createPersistentClient(String ip, int port) {
         String clientId = ip + ":" + port + "#" + false;
         return new IpPortBasedClient(clientId, false);
@@ -93,8 +98,9 @@ public class IpPortBasedClient implements Client {
 
     @Override
     public boolean addServiceInstance(Service service, InstancePublishInfo instancePublishInfo) {
-        // 更新时间
+        // 刷新更新时间
         setLastUpdatedTime();
+        
         // 增加服务版本号
         service.incrementRevision();
         service.renewUpdateTime();
@@ -102,9 +108,9 @@ public class IpPortBasedClient implements Client {
         // 存储实例信息
         serviceInstances.put(service, instancePublishInfo);
 
-        System.out.println("[Client] Instance added: " + service.getName()
-                + " -> " + instancePublishInfo.toInetAddr()
-                + " by client: " + clientId);
+        System.out.println("[Client] Register: " + service.getName() 
+            + " -> " + instancePublishInfo.toInetAddr()
+            + " (client: " + clientId + ")");
         return true;
     }
 
@@ -116,8 +122,8 @@ public class IpPortBasedClient implements Client {
 
         InstancePublishInfo removed = serviceInstances.remove(service);
         if (removed != null) {
-            System.out.println("[Client] Instance removed: " + service.getName()
-                    + " by client: " + clientId);
+            System.out.println("[Client] Deregister: " + service.getName()
+                + " (client: " + clientId + ")");
         }
         return removed;
     }
@@ -139,7 +145,6 @@ public class IpPortBasedClient implements Client {
 
     @Override
     public void release() {
-        // 清理资源
         serviceInstances.clear();
         System.out.println("[Client] Released: " + clientId);
     }
@@ -152,10 +157,7 @@ public class IpPortBasedClient implements Client {
 
     @Override
     public String toString() {
-        return "IpPortBasedClient{" +
-                "clientId='" + clientId + '\'' +
-                ", ephemeral=" + ephemeral +
-                ", instances=" + serviceInstances.size() +
-                '}';
+        return "IpPortBasedClient{clientId='" + clientId + '\'' 
+            + ", instances=" + serviceInstances.size() + '}';
     }
 }

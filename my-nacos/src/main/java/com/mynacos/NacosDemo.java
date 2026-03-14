@@ -14,51 +14,53 @@ import com.mynacos.naming.core.v2.pojo.Service;
 
 /**
  * Nacos v2 核心功能演示
- *
- * 验证:
+ * 
+ * 验证流程：
  * 1. Service 单例模式
  * 2. ServiceManager 管理
  * 3. Client 发布实例
+ * 4. ClientManager 管理客户端
  */
 public class NacosDemo {
 
     public static void main(String[] args) {
         System.out.println("=== My Nacos v2 Core Demo ===\n");
 
-        // 1. 获取 ServiceManager 单例
+        // ========== 1. ServiceManager 单例 ==========
         ServiceManager serviceManager = ServiceManager.getInstance();
-        System.out.println("1. ServiceManager 单例获取成功");
+        System.out.println("1. ServiceManager singleton: OK\n");
 
-        // 2. 创建或获取 Service 单例
+        // ========== 2. Service 单例验证 ==========
+        System.out.println("2. Service Singleton Test:");
+        
         Service orderService = Service.newService("public", "DEFAULT_GROUP", "order-service");
         Service orderService2 = Service.newService("public", "DEFAULT_GROUP", "order-service");
-
-        // 验证是同一个对象（通过 equals）
-        System.out.println("\n2. Service 单例验证:");
-        System.out.println("   orderService == orderService2 (equals): " + orderService.equals(orderService2));
-        System.out.println("   orderService == orderService2 (hashCode): " + (orderService.hashCode() == orderService2.hashCode()));
-
-        // 通过 ServiceManager 获取单例
-        Service singletonOrderService = serviceManager.getSingleton(orderService);
-        Service singletonOrderService2 = serviceManager.getSingleton(orderService2);
-        System.out.println("   从 ServiceManager 获取的是同一对象: " + (singletonOrderService == singletonOrderService2));
-
-        // 3. 创建另一个服务
+        
+        System.out.println("   orderService.equals(orderService2): " + orderService.equals(orderService2));
+        
+        Service singleton1 = serviceManager.getSingleton(orderService);
+        Service singleton2 = serviceManager.getSingleton(orderService2);
+        System.out.println("   Same instance from ServiceManager: " + (singleton1 == singleton2));
+        
+        // 创建另一个服务
         Service userService = Service.newService("public", "DEFAULT_GROUP", "user-service");
         serviceManager.getSingleton(userService);
-        System.out.println("\n   ServiceManager 当前服务数: " + serviceManager.size());
+        System.out.println("   Total services: " + serviceManager.size() + "\n");
 
-        // 4. 创建 ClientManager
+        // ========== 3. Client 管理 ==========
+        System.out.println("3. Client Management:");
+        
         ClientManager clientManager = new EphemeralIpPortClientManager();
-        System.out.println("\n3. ClientManager 创建成功");
-
-        // 5. 客户端连接
+        
+        // 客户端连接
         String clientId = "192.168.1.100:8080#true";
         clientManager.clientConnected(clientId);
-        System.out.println("\n4. 客户端连接成功: " + clientId);
-        System.out.println("   当前客户端数: " + clientManager.currentClientCount());
+        System.out.println("   Client connected: " + clientId);
+        System.out.println("   Total clients: " + clientManager.currentClientCount());
 
-        // 6. 获取 Client 并注册实例
+        // ========== 4. 服务注册 ==========
+        System.out.println("\n4. Service Registration:");
+        
         Client client = clientManager.getClient(clientId);
         if (client != null) {
             InstancePublishInfo instance = new InstancePublishInfo("192.168.1.100", 8080);
@@ -66,33 +68,27 @@ public class NacosDemo {
             instance.setHealthy(true);
             instance.getMetadata().put("version", "v1.0");
 
-            client.addServiceInstance(singletonOrderService, instance);
-            System.out.println("\n5. 实例注册成功");
-            System.out.println("   服务: " + singletonOrderService.getName());
-            System.out.println("   实例: " + instance.toInetAddr());
-
-            // 验证可以获取
-            InstancePublishInfo retrieved = client.getInstancePublishInfo(singletonOrderService);
-            System.out.println("   验证获取: " + retrieved);
+            client.addServiceInstance(singleton1, instance);
+            
+            // 验证获取
+            InstancePublishInfo retrieved = client.getInstancePublishInfo(singleton1);
+            System.out.println("   Retrieved: " + retrieved);
         }
 
-        // 7. 创建另一个客户端（模拟另一个服务实例）
+        // 第二个实例
         String clientId2 = "192.168.1.101:8080#true";
         clientManager.clientConnected(clientId2);
         Client client2 = clientManager.getClient(clientId2);
-
         if (client2 != null) {
             InstancePublishInfo instance2 = new InstancePublishInfo("192.168.1.101", 8080);
-            client2.addServiceInstance(singletonOrderService, instance2);
-            System.out.println("\n6. 第二个实例注册成功");
+            client2.addServiceInstance(singleton1, instance2);
         }
 
-        // 8. 查看 Service 版本号
-        System.out.println("\n7. Service 版本信息:");
-        System.out.println("   order-service revision: " + singletonOrderService.getRevision());
-        System.out.println("   order-service lastUpdated: " + singletonOrderService.getLastUpdatedTime());
+        // ========== 5. Service 版本 ==========
+        System.out.println("\n5. Service Version:");
+        System.out.println("   order-service revision: " + singleton1.getRevision());
 
-        // 9. 总结
+        // ========== Summary ==========
         System.out.println("\n=== Summary ===");
         System.out.println("Services: " + serviceManager.size());
         System.out.println("Clients: " + clientManager.currentClientCount());

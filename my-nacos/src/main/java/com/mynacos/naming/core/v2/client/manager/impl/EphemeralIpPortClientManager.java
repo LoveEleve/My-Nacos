@@ -12,11 +12,18 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 临时 IP:Port 客户端管理器
- *
- * 对照源码: com.alibaba.nacos.naming.core.v2.client.manager.impl.EphemeralIpPortClientManager
- *
- * 管理临时实例的客户端
+ * EphemeralIpPortClientManager - 临时 IP:Port 客户端管理器
+ * 
+ * 职责：
+ * - 管理临时实例的客户端（ephemeral=true）
+ * - 存储 clientId -> Client 的映射
+ * - 连接断开时自动清理
+ * 
+ * 存储：ConcurrentHashMap<String, Client>
+ * - Key：clientId（如 192.168.1.100:8080#true）
+ * - Value：IpPortBasedClient 对象
+ * 
+ * 对照：com.alibaba.nacos.naming.core.v2.client.manager.impl.EphemeralIpPortClientManager
  */
 public class EphemeralIpPortClientManager implements ClientManager {
 
@@ -46,19 +53,23 @@ public class EphemeralIpPortClientManager implements ClientManager {
         int port = Integer.parseInt(ipPort[1]);
         boolean ephemeral = Boolean.parseBoolean(parts[1]);
 
-        Client client = new IpPortBasedClient(clientId, ephemeral);
+        // 只接受临时客户端
+        if (!ephemeral) {
+            return false;
+        }
+
+        Client client = new IpPortBasedClient(clientId, true);
         return clientConnected(client);
     }
 
     @Override
     public boolean clientConnected(Client client) {
-        // 只允许临时客户端
         if (!client.isEphemeral()) {
             return false;
         }
 
         clients.computeIfAbsent(client.getClientId(), key -> {
-            System.out.println("[ClientManager] New ephemeral client connected: " + key);
+            System.out.println("[ClientManager] Connected: " + key);
             return client;
         });
         return true;
@@ -70,7 +81,7 @@ public class EphemeralIpPortClientManager implements ClientManager {
         if (client != null) {
             // 清理资源
             client.release();
-            System.out.println("[ClientManager] Ephemeral client disconnected: " + clientId);
+            System.out.println("[ClientManager] Disconnected: " + clientId);
             return true;
         }
         return false;
