@@ -7,6 +7,8 @@ com/mynacos/NacosUnitTest.class
 com/mynacos/naming/core/v2/pojo/Service.class
 com/mynacos/NacosQuickTest.class
 com/mynacos/naming/core/v2/index/ClientServiceIndexesManager.class
+com/mynacos/naming/core/v2/ServiceInfoHolder.class
+com/mynacos/naming/remote/NacosClient.class
 com/mynacos/naming/push/DelayTask.class
 com/mynacos/naming/push/NamingPushService.class
 com/mynacos/naming/remote/NacosHttpServer$ListHandler.class
@@ -15,11 +17,15 @@ com/mynacos/naming/remote/NacosHttpServer$BeatHandler.class
 com/mynacos/naming/push/PushDelayTaskExecuteEngine.class
 com/mynacos/naming/core/v2/index/ServiceStorage.class
 com/mynacos/naming/core/v2/pojo/InstancePublishInfo.class
+com/mynacos/naming/core/v2/pojo/ServiceInfo.class
 com/mynacos/NacosPushTest.class
 com/mynacos/NacosDemo.class
 com/mynacos/naming/push/PushTaskProcessor.class
 com/mynacos/naming/remote/InstanceController.class
 com/mynacos/naming/core/v2/client/manager/ClientManager.class
 com/mynacos/naming/remote/NacosHttpServer.class
+com/mynacos/naming/core/v2/ServiceInfoHolder$ServiceInfoUpdateListener.class
 com/mynacos/naming/remote/NacosHttpServer$InstanceHandler.class
+com/mynacos/naming/remote/NacosClient$1.class
+com/mynacos/NacosCacheTest.class
 com/mynacos/naming/core/v2/client/manager/impl/EphemeralIpPortClientManager.class
