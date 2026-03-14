@@ -76,6 +76,14 @@ java -cp target/classes com.mynacos.NacosPushTest
 | NamingPushService | `naming/push/NamingPushService.java` | ✅ |
 | ServiceStorage | `naming/core/v2/index/ServiceStorage.java` | ✅ |
 
+### 客户端缓存（阶段2进行中）
+
+| 组件 | 路径 | 状态 |
+|------|------|------|
+| ServiceInfo | `naming/core/v2/pojo/ServiceInfo.java` | ✅ |
+| ServiceInfoHolder | `naming/core/v2/ServiceInfoHolder.java` | ✅ |
+| NacosClient | `naming/remote/NacosClient.java` | ✅ |
+
 ## HTTP API
 
 ```
