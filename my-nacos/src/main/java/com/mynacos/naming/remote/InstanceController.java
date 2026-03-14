@@ -9,8 +9,12 @@ import com.mynacos.naming.core.v2.client.Client;
 import com.mynacos.naming.core.v2.client.impl.IpPortBasedClient;
 import com.mynacos.naming.core.v2.client.manager.ClientManager;
 import com.mynacos.naming.core.v2.client.manager.impl.EphemeralIpPortClientManager;
+import com.mynacos.naming.core.v2.index.ClientServiceIndexesManager;
 import com.mynacos.naming.core.v2.pojo.InstancePublishInfo;
 import com.mynacos.naming.core.v2.pojo.Service;
+import com.mynacos.naming.push.NamingPushService;
+import com.mynacos.naming.push.PushDelayTask;
+import com.mynacos.naming.push.PushDelayTaskExecuteEngine;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -18,33 +22,28 @@ import java.util.Optional;
 /**
  * InstanceController - 实例管理控制器
  *
- * 问题：外部如何调用 Nacos 的服务注册/发现功能？
- *
- * 方案：HTTP 接口
- * - POST /nacos/v1/ns/instance - 注册实例
- * - DELETE /nacos/v1/ns/instance - 注销实例
- * - GET /nacos/v1/ns/instance/list - 查询实例列表
- * - PUT /nacos/v1/ns/instance/beat - 心跳
- *
- * 对照：com.alibaba.nacos.naming.controllers.InstanceController
+ * 新增：订阅功能和推送触发
  */
 public class InstanceController {
 
     private final ServiceManager serviceManager;
     private final ClientManager clientManager;
+    private final ClientServiceIndexesManager indexesManager;
+    private final PushDelayTaskExecuteEngine pushEngine;
 
     public InstanceController() {
         this.serviceManager = ServiceManager.getInstance();
         this.clientManager = new EphemeralIpPortClientManager();
+        this.indexesManager = ClientServiceIndexesManager.getInstance();
+
+        // 初始化推送引擎
+        NamingPushService pushService = new NamingPushService();
+        this.pushEngine = new PushDelayTaskExecuteEngine(pushService);
+        this.pushEngine.start();
     }
 
     /**
      * 注册实例
-     *
-     * 流程：
-     * 1. 获取或创建 Service 单例
-     * 2. 获取或创建 Client
-     * 3. Client 发布实例
      */
     public String registerInstance(String namespaceId, String groupName,
                                    String serviceName, String ip, int port,
@@ -78,6 +77,9 @@ public class InstanceController {
             // 4. 发布实例
             client.addServiceInstance(singletonService, instanceInfo);
 
+            // 5. 触发推送（延迟500ms）
+            triggerPush(singletonService);
+
             return "{\"code\":200,\"message\":\"ok\"}";
         } catch (Exception e) {
             return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
@@ -90,7 +92,6 @@ public class InstanceController {
     public String deregisterInstance(String namespaceId, String groupName,
                                      String serviceName, String ip, int port) {
         try {
-            // 1. 查找 Service
             Optional<Service> serviceOpt = serviceManager.getSingletonIfExist(
                 namespaceId, groupName, serviceName);
 
@@ -98,7 +99,6 @@ public class InstanceController {
                 return "{\"code\":200,\"message\":\"service not found\"}";
             }
 
-            // 2. 查找 Client
             String clientId = ip + ":" + port + "#true";
             Client client = clientManager.getClient(clientId);
 
@@ -106,13 +106,18 @@ public class InstanceController {
                 return "{\"code\":200,\"message\":\"client not found\"}";
             }
 
-            // 3. 移除实例
-            client.removeServiceInstance(serviceOpt.get());
+            Service service = serviceOpt.get();
+            client.removeServiceInstance(service);
 
-            // 4. 如果 Client 没有实例了，断开连接
+            // 清理订阅
+            indexesManager.removeSubscriber(service, clientId);
+
             if (client.getAllPublishedService().isEmpty()) {
                 clientManager.clientDisconnected(clientId);
             }
+
+            // 触发推送
+            triggerPush(service);
 
             return "{\"code\":200,\"message\":\"ok\"}";
         } catch (Exception e) {
@@ -125,7 +130,6 @@ public class InstanceController {
      */
     public String listInstances(String namespaceId, String groupName, String serviceName) {
         try {
-            // 1. 查找 Service
             Optional<Service> serviceOpt = serviceManager.getSingletonIfExist(
                 namespaceId, groupName, serviceName);
 
@@ -135,7 +139,6 @@ public class InstanceController {
 
             Service service = serviceOpt.get();
 
-            // 2. 收集所有 Client 发布的该服务实例
             StringBuilder hosts = new StringBuilder();
             hosts.append("[");
 
@@ -161,7 +164,6 @@ public class InstanceController {
 
             hosts.append("]");
 
-            // 3. 构建响应
             StringBuilder response = new StringBuilder();
             response.append("{");
             response.append("\"name\":\"").append(serviceName).append("\",");
@@ -187,14 +189,11 @@ public class InstanceController {
             Client client = clientManager.getClient(clientId);
 
             if (client == null) {
-                // Client 不存在，需要重新注册
                 return "{\"code\":20404,\"message\":\"client not found\"}";
             }
 
-            // 刷新客户端更新时间
             client.setLastUpdatedTime();
 
-            // 查找 Service 并更新
             Optional<Service> serviceOpt = serviceManager.getSingletonIfExist(
                 namespaceId, groupName, serviceName);
 
@@ -202,7 +201,6 @@ public class InstanceController {
                 Service service = serviceOpt.get();
                 InstancePublishInfo instance = client.getInstancePublishInfo(service);
                 if (instance != null && !instance.isHealthy()) {
-                    // 如果之前不健康，恢复为健康
                     instance.setHealthy(true);
                 }
             }
@@ -214,8 +212,54 @@ public class InstanceController {
     }
 
     /**
-     * 构建空响应
+     * 订阅服务
      */
+    public String subscribe(String namespaceId, String groupName,
+                           String serviceName, String clientId) {
+        try {
+            Service service = Service.newService(namespaceId, groupName, serviceName);
+            Service singletonService = serviceManager.getSingleton(service);
+
+            // 添加订阅关系
+            indexesManager.addSubscriber(singletonService, clientId);
+
+            // 立即推送一次（延迟0ms，专门给这个客户端）
+            PushDelayTask task = new PushDelayTask(singletonService, clientId);
+            pushEngine.addTask(singletonService, task);
+
+            return "{\"code\":200,\"message\":\"ok\"}";
+        } catch (Exception e) {
+            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    /**
+     * 取消订阅
+     */
+    public String unsubscribe(String namespaceId, String groupName,
+                             String serviceName, String clientId) {
+        try {
+            Optional<Service> serviceOpt = serviceManager.getSingletonIfExist(
+                namespaceId, groupName, serviceName);
+
+            if (serviceOpt.isPresent()) {
+                indexesManager.removeSubscriber(serviceOpt.get(), clientId);
+            }
+
+            return "{\"code\":200,\"message\":\"ok\"}";
+        } catch (Exception e) {
+            return "{\"code\":500,\"message\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    /**
+     * 触发推送
+     */
+    private void triggerPush(Service service) {
+        PushDelayTask task = new PushDelayTask(service);
+        pushEngine.addTask(service, task);
+    }
+
     private String buildEmptyResponse(String serviceName) {
         return "{\"name\":\"" + serviceName + "\",\"groupName\":\"DEFAULT_GROUP\",\"clusters\":\"\",\"cacheMillis\":10000,\"hosts\":[]}";
     }
