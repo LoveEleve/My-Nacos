@@ -1,77 +1,71 @@
 # My Nacos - 手写服务注册中心
 
-> 基于「问题驱动的逆向工程学习」方法手写 Nacos 核心功能
+> 对照 Nacos 2.x 源码手写实现，基于「问题驱动的逆向工程学习」方法
 
-## 项目结构
+## 项目目标
 
-```
-my_nacos/
-├── my-nacos-server/     # 服务端模块
-│   └── src/main/java/com/mynacos/server/
-│       ├── ServiceManager.java          # 服务管理器（三层Map结构）
-│       ├── Service.java                 # 服务定义
-│       ├── Instance.java                # 实例定义
-│       ├── HealthCheckProcessor.java    # 健康检查（心跳）
-│       └── NacosServer.java             # HTTP服务端
-├── my-nacos-client/     # 客户端模块
-│   └── src/main/java/com/mynacos/client/
-│       └── NacosClient.java             # 客户端实现
-└── docs/
-    └── 手写Nacos问题驱动指南.md          # 完整学习文档
-```
+**v1 分支目标**：实现与 Nacos 2.x 架构一致的核心功能
 
-## 快速开始
+- ✅ 真实架构：Service + Client 模型（不是玩具三层Map）
+- ✅ 单例模式：ServiceManager 保证 Service 单例
+- ✅ 版本控制：Service.revision 用于 Distro 同步
+- ✅ 客户端抽象：Client 接口 + IpPortBasedClient 实现
+- 🔄 连接管理：基于 gRPC 的长连接（待实现）
+- 🔄 服务注册：HTTP/gRPC 接口（待实现）
+- 🔄 集群同步：Distro 协议（待实现）
 
-### 1. 启动服务端
+## 与真实 Nacos 2.x 的对比
 
-```java
-NacosServer server = new NacosServer(8848);
-server.start();
-```
+| 模块 | 我们的实现 | Nacos 2.x 源码 | 状态 |
+|------|-----------|----------------|------|
+| Service | `com.mynacos.naming.core.v2.pojo.Service` | `com.alibaba.nacos.naming.core.v2.pojo.Service` | ✅ 已对齐 |
+| ServiceManager | `com.mynacos.naming.core.v2.ServiceManager` | `com.alibaba.nacos.naming.core.v2.ServiceManager` | ✅ 已对齐 |
+| Client | `com.mynacos.naming.core.v2.client.Client` | `com.alibaba.nacos.naming.core.v2.client.Client` | ✅ 已对齐 |
+| IpPortBasedClient | `com.mynacos.naming.core.v2.client.impl.IpPortBasedClient` | `com.alibaba.nacos.naming.core.v2.client.impl.IpPortBasedClient` | ✅ 已对齐 |
+| ClientManager | `com.mynacos.naming.core.v2.client.manager.ClientManager` | `com.alibaba.nacos.naming.core.v2.client.manager.ClientManager` | ✅ 已对齐 |
+| EphemeralIpPortClientManager | `...impl.EphemeralIpPortClientManager` | `...impl.EphemeralIpPortClientManager` | ✅ 已对齐 |
+| ConnectionBasedClientManager | 占位待实现 | `...impl.ConnectionBasedClientManager` | 🔄 待实现 |
+| gRPC 服务 | 占位待实现 | `com.alibaba.nacos.naming.remote.rpc` | 🔄 待实现 |
+| Distro 协议 | 占位待实现 | `com.alibaba.nacos.naming.consistency.ephemeral.distro` | 🔄 待实现 |
 
-### 2. 客户端注册服务
+## 快速验证
 
-```java
-NacosClient client = new NacosClient("localhost:8848");
-client.registerInstance("order-service", "192.168.1.100", 8080);
-```
-
-### 3. 客户端发现服务
-
-```java
-String instances = client.getInstances("order-service");
-System.out.println(instances);
+```bash
+cd my-nacos
+mvn compile -q
+java -cp target/classes com.mynacos.NacosDemo
 ```
 
-## 阶段1：单机 MVP（已完成 ✅）
-
-- [x] 服务端存储结构（ServiceManager - 三层Map）
-- [x] 读多写少优化（CopyOnWriteArrayList）
-- [x] 健康检查（心跳机制）
-- [x] HTTP服务端（注册/查询/心跳接口）
-- [x] 客户端实现（自动心跳）
-
-## 阶段2：生产特性（待开发）
-
-- [ ] 连接管理器（ConnectionManager）
-- [ ] 服务订阅与推送
-- [ ] 客户端本地缓存
-- [ ] 故障转移
-
-## 阶段3：集群一致性（待开发）
-
-- [ ] Distro协议实现
-- [ ] 一致性哈希
-- [ ] 节点发现与加入
+预期输出：
+```
+=== My Nacos v2 Core Demo ===
+...
+Service 单例验证: true
+从 ServiceManager 获取的是同一对象: true
+...
+Demo completed!
+```
 
 ## 核心设计
 
-| 问题 | 解决方案 | 核心代码 |
-|------|----------|----------|
-| 服务怎么存？ | 三层 Map | `ServiceManager.serviceMap` |
-| 读多写少？ | CopyOnWrite | `Service.instances` |
-| 健康检查？ | 心跳机制 | `HealthCheckProcessor` |
-| 海量连接？ | 连接池 | 待实现 |
+### Service 单例模式
+
+```java
+// 通过 equals/hashCode 保证单例
+Service s1 = Service.newService("public", "DEFAULT_GROUP", "order");
+Service s2 = Service.newService("public", "DEFAULT_GROUP", "order");
+assert s1.equals(s2);  // true
+assert ServiceManager.getInstance().getSingleton(s1) 
+    == ServiceManager.getInstance().getSingleton(s2);  // true
+```
+
+### Client 发布实例
+
+```java
+// Client 存储自己的实例
+Client client = IpPortBasedClient.createEphemeralClient("192.168.1.100", 8080);
+client.addServiceInstance(service, instanceInfo);
+```
 
 ## 学习文档
 

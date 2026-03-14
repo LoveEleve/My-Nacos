@@ -1,0 +1,8 @@
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/client/manager/impl/EphemeralIpPortClientManager.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/client/Client.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/client/manager/ClientManager.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/pojo/Service.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/client/impl/IpPortBasedClient.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/ServiceManager.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/NacosDemo.java
+/data/workspace/my_nacos/my-nacos/src/main/java/com/mynacos/naming/core/v2/pojo/InstancePublishInfo.java
