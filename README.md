@@ -84,6 +84,15 @@ java -cp target/classes com.mynacos.NacosPushTest
 | ServiceInfoHolder | `naming/core/v2/ServiceInfoHolder.java` | ✅ |
 | NacosClient | `naming/remote/NacosClient.java` | ✅ |
 
+### 集群一致性（阶段3完成）
+
+| 组件 | 路径 | 状态 |
+|------|------|------|
+| Member | `naming/core/v2/pojo/Member.java` | ✅ |
+| ServerMemberManager | `naming/core/v2/ServerMemberManager.java` | ✅ |
+| ConsistentHashRing | `naming/core/v2/ConsistentHashRing.java` | ✅ |
+| DistroProtocol | `naming/consistency/distro/DistroProtocol.java` | ✅ |
+
 ## HTTP API
 
 ```
